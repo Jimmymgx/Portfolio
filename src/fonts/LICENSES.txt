@@ -1,0 +1,1 @@
+Fonts: Inter Tight (OFL), Instrument Serif (OFL), JetBrains Mono (OFL), IBM Plex Sans Arabic (OFL). Sourced from the @fontsource packages; see each package's LICENSE.

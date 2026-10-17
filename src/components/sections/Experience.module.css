@@ -1,0 +1,152 @@
+.legend {
+  display: flex;
+  gap: 20px;
+  margin-top: 28px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.wrap {
+  margin-top: clamp(32px, 5vw, 64px);
+}
+.list {
+  position: relative;
+}
+.items {
+  display: grid;
+  gap: 28px;
+}
+.spine {
+  position: absolute;
+  inset-block: 8px 8px;
+  inset-inline-start: 190px;
+  width: 2px;
+  background: var(--line-2);
+  border-radius: 2px;
+}
+.fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform-origin: top;
+  transform: scaleY(0);
+  will-change: transform;
+}
+.item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 0 56px;
+  align-items: start;
+}
+.dot {
+  position: absolute;
+  inset-inline-start: 184px;
+  top: 28px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: inset 0 0 0 2px var(--faint);
+  z-index: 1;
+  transition:
+    background-color 0.4s,
+    box-shadow 0.4s,
+    transform 0.5s var(--ease);
+}
+.reached .dot {
+  background: var(--ink);
+  box-shadow:
+    inset 0 0 0 2px var(--ink),
+    0 0 0 6px rgba(13, 13, 13, 0.08);
+  transform: scale(1.15);
+}
+.date {
+  padding-top: 24px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 13px;
+  color: var(--mute);
+  transition: color 0.4s;
+}
+.reached .date {
+  color: var(--ink);
+}
+.kind {
+  font-size: 9px;
+  margin-inline-end: 4px;
+}
+.card {
+  padding: 24px 28px;
+  margin-inline-start: 40px;
+  opacity: 0.7;
+}
+.reached .card {
+  opacity: 1;
+}
+.role {
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+:global([dir="rtl"]) .role {
+  letter-spacing: 0;
+}
+.org {
+  margin-top: 4px;
+  color: var(--mute);
+}
+.details {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+.next {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-inline-start: 40px;
+  padding: 24px 32px;
+  border-radius: 26px;
+  border: 1.5px dashed var(--line-2);
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  transition:
+    border-color 0.3s,
+    background-color 0.3s;
+}
+.next:hover {
+  border-color: var(--ink);
+  background: #fff;
+}
+
+@media (max-width: 760px) {
+  .spine {
+    inset-inline-start: 6px;
+  }
+  .item {
+    grid-template-columns: 1fr;
+    padding-inline-start: 32px;
+  }
+  .dot {
+    inset-inline-start: 0;
+    top: 6px;
+  }
+  .date {
+    padding-top: 0;
+    margin-bottom: 10px;
+  }
+  .card,
+  .next {
+    margin-inline-start: 0;
+  }
+  .card {
+    padding: 20px;
+  }
+}

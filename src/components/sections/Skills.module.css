@@ -1,0 +1,228 @@
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: clamp(32px, 5vw, 56px) 0 28px;
+}
+.chip {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1.5px var(--line-2);
+  transition:
+    background-color 0.3s,
+    color 0.3s,
+    box-shadow 0.3s;
+}
+.chip:hover {
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.chipOn {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: start;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+.cell {
+  --w: var(--w8);
+  min-width: 0;
+}
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 8px 9px 9px;
+  border-radius: 14px;
+  text-align: start;
+  background: var(--card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition:
+    transform 0.4s var(--ease),
+    opacity 0.4s,
+    background-color 0.3s,
+    color 0.3s,
+    box-shadow 0.4s var(--ease);
+}
+.tile:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 0 0 1px var(--line-2),
+    0 14px 24px -16px rgba(13, 13, 13, 0.35);
+}
+.on {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+}
+.dim {
+  opacity: 0.22;
+}
+.num {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: var(--mute);
+}
+.on .num {
+  color: rgba(255, 255, 255, 0.6);
+}
+.sym {
+  font-size: clamp(20px, 2.6vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+.nm {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fam {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.on .fam {
+  color: rgba(255, 255, 255, 0.6);
+}
+:global([dir="rtl"]) .fam {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 10px;
+}
+
+.inspector {
+  position: sticky;
+  top: 108px;
+}
+.panel {
+  display: grid;
+  gap: 22px;
+  padding: 26px;
+  min-height: 220px;
+}
+.logoWrap {
+  --glow: transparent;
+  display: grid;
+  place-items: center;
+  width: 108px;
+  height: 108px;
+  border-radius: 24px;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 18px 40px -22px color-mix(in srgb, var(--glow) 70%, transparent);
+  transition: box-shadow 0.5s var(--ease);
+}
+.pname {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+:global([dir="rtl"]) .pname {
+  letter-spacing: 0;
+}
+.info {
+  display: grid;
+  gap: 10px;
+}
+.meta {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.meta span {
+  display: block;
+  margin-bottom: 1px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+:global([dir="rtl"]) .meta span {
+  letter-spacing: 0;
+  font-size: 12px;
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .inspector {
+    position: sticky;
+    top: auto;
+    bottom: 12px;
+    z-index: 5;
+  }
+  .panel {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    min-height: 0;
+    padding: 16px;
+    gap: 16px;
+    box-shadow:
+      inset 0 0 0 1px var(--line),
+      0 20px 40px -20px rgba(13, 13, 13, 0.35);
+  }
+  .logoWrap {
+    width: 76px;
+    height: 76px;
+    border-radius: 18px;
+  }
+  .pname {
+    font-size: 22px;
+  }
+}
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .cell {
+    --w: var(--w4);
+  }
+  .fam {
+    display: none;
+  }
+  .nm {
+    font-size: 10px;
+  }
+}
+@media (max-width: 380px) {
+  .grid {
+    gap: 6px;
+  }
+  .tile {
+    padding: 6px;
+    border-radius: 12px;
+  }
+  .num {
+    display: none;
+  }
+}

@@ -1,0 +1,145 @@
+.section {
+  position: relative;
+}
+.outer {
+  position: relative;
+}
+.sticky {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(28px, 6vh, 64px);
+  overflow: hidden;
+  padding-block: 96px 56px;
+}
+.head {
+  width: 100%;
+}
+.track {
+  display: flex;
+  gap: clamp(16px, 2vw, 28px);
+  padding-inline: var(--gutter);
+  width: max-content;
+  will-change: transform;
+}
+.card {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 14px;
+  width: clamp(340px, 40vw, 540px);
+  height: clamp(260px, 36vh, 310px);
+  padding: 26px 28px;
+  border-radius: 26px;
+  background: var(--card);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 14px 30px -24px rgba(13, 13, 13, 0.3);
+  transition:
+    transform 0.6s var(--ease),
+    box-shadow 0.6s var(--ease);
+}
+.active {
+  transform: translateY(-12px);
+  box-shadow:
+    inset 0 0 0 1px var(--line-2),
+    0 40px 70px -30px rgba(13, 13, 13, 0.5);
+}
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo {
+  --glow: transparent;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 10px 26px -14px color-mix(in srgb, var(--glow) 60%, transparent);
+}
+.card {
+  --glow: transparent;
+}
+.idx {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  color: var(--mute);
+}
+.mid {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 0;
+}
+.title {
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+:global([dir="rtl"]) .title {
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+.caption,
+.detail {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.detail {
+  color: var(--mute);
+}
+.figure {
+  font-size: clamp(44px, 5vw, 68px);
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+.progress {
+  position: relative;
+  height: 2px;
+  margin-inline: var(--gutter);
+  background: var(--line-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress span {
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+:global([dir="rtl"]) .progress span {
+  transform-origin: right center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+  .track {
+    width: auto;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 24px;
+  }
+  .card {
+    scroll-snap-align: start;
+  }
+  .progress {
+    display: none;
+  }
+}
