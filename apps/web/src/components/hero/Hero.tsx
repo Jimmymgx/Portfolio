@@ -17,9 +17,14 @@ interface Props {
   intro: string | null;
   introDraft: boolean;
   poster: string;
-  video: { webm: string; mp4: string } | null;
+  video: { webm: string | null; mp4: string | null } | null;
+  /** The CMS can switch the sound button off. */
+  audioEnabled?: boolean;
   hasWork: boolean;
   resumeUrl: string | null;
+  /** Button overrides from the CMS. Empty uses the default labels and targets. */
+  primaryCta?: { text: string; href: string } | null;
+  secondaryCta?: { text: string; href: string } | null;
 }
 
 export default function Hero({
@@ -32,8 +37,11 @@ export default function Hero({
   introDraft,
   poster,
   video,
+  audioEnabled = true,
   hasWork,
   resumeUrl,
+  primaryCta,
+  secondaryCta,
 }: Props) {
   const t = ui(locale);
   const { scrollTo } = useScroll();
@@ -104,6 +112,19 @@ export default function Hero({
     history.replaceState(null, "", `#${id}`);
   };
 
+  const primary = primaryCta ?? (hasWork ? { text: t.exploreWork, href: "#work" } : null);
+  const secondary = secondaryCta ?? { text: t.letsTalk, href: "#contact" };
+  const cta = (c: { text: string; href: string }, className: string) =>
+    c.href.startsWith("#") ? (
+      <a href={c.href} className={className} onClick={(e) => go(e, c.href.slice(1))}>
+        {c.text}
+      </a>
+    ) : (
+      <a href={c.href} className={className} {...(/^https?:/.test(c.href) ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+        {c.text}
+      </a>
+    );
+
   return (
     <section id="top" ref={heroRef} className={s.hero} aria-labelledby="hero-title">
       <div className={s.ghost} aria-hidden="true">
@@ -131,15 +152,15 @@ export default function Hero({
               aria-label={t.heroVideoLabel}
               disableRemotePlayback
             >
-              <source src={video.webm} type="video/webm" />
-              <source src={video.mp4} type="video/mp4" />
+              {video.webm && <source src={video.webm} type="video/webm" />}
+              {video.mp4 && <source src={video.mp4} type="video/mp4" />}
             </video>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img className={s.video} src={poster} alt={t.heroVideoLabel} />
           )}
           <figcaption className="sr-only">{t.avatarNote}</figcaption>
-          {video && (
+          {video && audioEnabled && (
             <button
               type="button"
               className={s.sound}
@@ -177,14 +198,8 @@ export default function Hero({
             </p>
           )}
           <div className={`${s.cta} rv`} style={{ ["--i" as string]: 4 }}>
-            {hasWork && (
-              <a href="#work" className="btn btn-primary" onClick={(e) => go(e, "work")}>
-                {t.exploreWork}
-              </a>
-            )}
-            <a href="#contact" className="btn btn-ghost" onClick={(e) => go(e, "contact")}>
-              {t.letsTalk}
-            </a>
+            {primary && cta(primary, "btn btn-primary")}
+            {cta(secondary, "btn btn-ghost")}
             {resumeUrl && (
               <a href={resumeUrl} className="btn btn-ghost" download>
                 {t.resume}

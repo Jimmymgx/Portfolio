@@ -4,15 +4,13 @@ import { ui, type Locale } from "@/lib/i18n";
 import { useScroll } from "@/lib/scroll";
 import s from "./Footer.module.css";
 
-export default function Footer({ locale, name }: { locale: Locale; name: string }) {
+export default function Footer({ locale, name, text }: { locale: Locale; name: string; text?: string | null }) {
   const t = ui(locale);
   const { scrollTo } = useScroll();
   return (
     <footer className={s.footer}>
       <div className={`container-x ${s.inner}`}>
-        <p>
-          © {new Date().getFullYear()} {name}. {t.rights}
-        </p>
+        <p>{text ?? `© ${new Date().getFullYear()} ${name}. ${t.rights}`}</p>
         <a
           href="#top"
           className={s.top}

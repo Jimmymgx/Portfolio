@@ -2,7 +2,7 @@
 """
 Build hero media from the owner-supplied intro video and portrait image.
 
-Outputs (written to ./public):
+Outputs (written to ./apps/web/public):
   hero/hero.mp4          H.264 / yuv420p / CRF 24 / AAC / faststart
   hero/hero.webm         VP9 / Opus
   hero/hero-poster.webp  poster frame
@@ -10,7 +10,7 @@ Outputs (written to ./public):
   og.jpg                 1200x630 social card
 
 Usage:
-  python scripts/build-hero-assets.py --video <intro.mp4> --image <portrait.jpg>
+  python scripts/build-hero-assets.py --video scripts/source-media/<intro.mp4> --image scripts/source-media/<portrait.jpg>
 Optional:
   --crop-x N          left edge of the crop in source pixels (default: auto-detected, centred on subject)
   --loop-fade 0.5     crossfade seconds for the seamless loop (0 disables)
@@ -33,7 +33,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
-PUBLIC = ROOT / "public"
+PUBLIC = ROOT / "apps" / "web" / "public"
 OUT_W, OUT_H = 768, 960  # 4:5 portrait
 
 

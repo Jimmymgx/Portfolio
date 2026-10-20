@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import App from "@/components/App";
 import Hero from "@/components/hero/Hero";
 import About from "@/components/sections/About";
@@ -7,116 +8,84 @@ import Certifications from "@/components/sections/Certifications";
 import Contact from "@/components/sections/Contact";
 import Experience from "@/components/sections/Experience";
 import Footer from "@/components/sections/Footer";
-import Skills, { type SkillView } from "@/components/sections/Skills";
-import Work, { type ProjectView } from "@/components/sections/Work";
-import {
-  PROFILE,
-  PROJECT_KINDS,
-  SHOW_DRAFTS,
-  getContent,
-  getNav,
-  isDraft,
-  loc,
-  txt,
-} from "@/lib/content";
+import Maintenance from "@/components/sections/Maintenance";
+import Skills from "@/components/sections/Skills";
+import Work from "@/components/sections/Work";
+import { BROWSER_API_URL } from "@/lib/api";
 import type { SectionId } from "@/lib/data";
-import { isLocale, ui, type Locale } from "@/lib/i18n";
+import { isLocale, type Locale } from "@/lib/i18n";
+import { getSiteModel } from "@/lib/site-model";
+
+/** Safety net: even if a cache-tag refresh is missed, the page refreshes itself within five minutes. */
+export const revalidate = 300;
 
 export default async function Page({ params }: { params: Promise<{ locale: string }> }) {
   const { locale: raw } = await params;
   if (!isLocale(raw)) notFound();
   const locale: Locale = raw;
-  const t = ui(locale);
+  const m = await getSiteModel(locale);
 
-  const content = getContent();
-  const nav = getNav(content);
-  const numberOf = (id: SectionId) => String(nav.findIndex((n) => n.id === id) + 1).padStart(2, "0");
+  if (m.maintenance) return <Maintenance locale={locale} name={m.name} />;
 
-  const name = txt(PROFILE.displayName, locale) ?? "";
-  const first = txt(PROFILE.firstName, locale) ?? name.split(" ")[0] ?? "";
-  const nameParts = name.split(" ");
-  const nameLines = nameParts.length > 1 ? [nameParts.slice(0, -1).join(" "), nameParts[nameParts.length - 1]] : [name];
+  const numberOf = (id: SectionId) => String(m.sections.findIndex((s) => s.id === id) + 1).padStart(2, "0");
+  const links = m.sections.map((s) => ({ id: s.id, label: s.label, number: numberOf(s.id) }));
+  const hasWork = m.sections.some((s) => s.id === "work");
 
-  const projects: ProjectView[] = content.projects.map((p) => {
-    const desc = txt(p.description, locale);
-    return {
-      id: p.id,
-      title: p.title,
-      kind: p.kind,
-      kindLabel: loc(PROJECT_KINDS[p.kind], locale),
-      description: desc,
-      descriptionDraft: !!desc && isDraft(p.description.status),
-      features: p.features.map((f) => txt(f, locale)).filter(Boolean) as string[],
-      technologies: p.technologies,
-      liveUrl: p.links.find((l) => l.label === "live")?.url ?? null,
-      repoUrl: p.links.find((l) => l.label === "repo")?.url ?? null,
-      screenshot: p.screenshot,
-    };
-  });
-
-  const titleById: Record<string, string> = Object.fromEntries(content.projects.map((p) => [p.id, p.title]));
-  const families = content.skillGroups.map((g) => ({ id: g.id, label: loc(g.label, locale) }));
-  const skills: SkillView[] = content.skillGroups.flatMap((g) =>
-    g.skills.map((sk) => ({
-      id: sk.id,
-      name: sk.name,
-      symbol: sk.symbol,
-      logo: sk.logo,
-      familyId: g.id,
-      familyLabel: loc(g.label, locale),
-      projects: (sk.projectIds ?? []).map((id) => titleById[id]).filter(Boolean),
-    })),
-  );
-
-  const links = nav.map((n) => ({ id: n.id, label: loc(n.label, locale), number: numberOf(n.id) }));
+  /** Controlled registry: the database only chooses the order and visibility of these known sections. */
+  const registry: Record<SectionId, () => ReactNode> = {
+    about: () => <About key="about" locale={locale} number={numberOf("about")} data={m.about} />,
+    skills: () => <Skills key="skills" locale={locale} number={numberOf("skills")} families={m.skills.families} skills={m.skills.items} />,
+    work: () => <Work key="work" locale={locale} number={numberOf("work")} projects={m.projects} />,
+    certifications: () => <Certifications key="certifications" locale={locale} number={numberOf("certifications")} items={m.certifications} />,
+    experience: () => <Experience key="experience" locale={locale} number={numberOf("experience")} items={m.timeline} showNextCard={m.showNextCard} />,
+    achievements: () => <Achievements key="achievements" locale={locale} number={numberOf("achievements")} items={m.achievements} />,
+    contact: () => (
+      <Contact
+        key="contact"
+        locale={locale}
+        number={numberOf("contact")}
+        email={m.contact.email}
+        phone={m.contact.phone}
+        whatsappUrl={m.contact.whatsappUrl}
+        links={m.contact.links}
+        headline={m.contact.headline}
+        intro={m.contact.intro}
+        formApiUrl={m.contact.formEnabled ? BROWSER_API_URL : null}
+      />
+    ),
+  };
 
   return (
     <App
       locale={locale}
       links={links}
-      name={name}
-      initials={PROFILE.initials}
+      name={m.name}
+      initials={m.initials}
       otherLocaleHref={locale === "en" ? "/ar" : "/en"}
-      banner={content.sample ? "sample" : SHOW_DRAFTS ? "draft" : null}
+      banner={m.banner}
     >
       <main id="main">
-        <Hero
-          locale={locale}
-          nameLines={nameLines}
-          ghost={first}
-          title={txt(PROFILE.title, locale) ?? ""}
-          roleLine={txt(PROFILE.roleLine, locale)}
-          intro={txt(PROFILE.intro, locale)}
-          introDraft={isDraft(PROFILE.intro.status)}
-          poster={PROFILE.heroPoster}
-          video={PROFILE.heroVideo}
-          hasWork={content.sections.work}
-          resumeUrl={PROFILE.resumeUrl}
-        />
-        {content.sections.about && <About locale={locale} content={content} number={numberOf("about")} />}
-        {content.sections.skills && (
-          <Skills locale={locale} number={numberOf("skills")} families={families} skills={skills} />
-        )}
-        {content.sections.work && <Work locale={locale} number={numberOf("work")} projects={projects} />}
-        {content.sections.certifications && (
-          <Certifications locale={locale} number={numberOf("certifications")} items={content.certifications} />
-        )}
-        {content.sections.experience && (
-          <Experience locale={locale} content={content} number={numberOf("experience")} />
-        )}
-        {content.sections.achievements && (
-          <Achievements locale={locale} number={numberOf("achievements")} items={content.achievements} />
-        )}
-        {content.sections.contact && (
-          <Contact
+        {m.showHero && (
+          <Hero
             locale={locale}
-            number={numberOf("contact")}
-            email={content.email}
-            links={content.social.map((l) => ({ kind: l.kind, url: l.url, handle: l.handle }))}
+            nameLines={m.nameLines}
+            ghost={m.ghost}
+            title={m.title}
+            roleLine={m.roleLine}
+            intro={m.intro}
+            introDraft={m.introDraft}
+            poster={m.poster}
+            video={m.video}
+            audioEnabled={m.audioEnabled}
+            hasWork={hasWork}
+            resumeUrl={m.resumeUrl}
+            primaryCta={m.primaryCta}
+            secondaryCta={m.secondaryCta}
           />
         )}
+        {m.sections.map((s) => registry[s.id]())}
       </main>
-      <Footer locale={locale} name={name} />
+      <Footer locale={locale} name={m.name} text={m.footerText} />
     </App>
   );
 }

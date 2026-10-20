@@ -1,0 +1,722 @@
+// Portfolio platform schema (MySQL, Prisma 7).
+//
+// Conventions
+//  - Bilingual text uses paired columns: `title` (English, required) and `titleAr` (Arabic, optional).
+//    The public API falls back to English when the Arabic column is empty.
+//  - Collection content (skills, projects, experience, ...) has `status: PublishStatus`.
+//    "Hidden" simply means UNPUBLISHED. There is no second visibility flag on content.
+//  - Singleton content (profile, hero, about, contact, site, seo) is stored as two rows,
+//    one per `ContentState`. Editors change the DRAFT row; publishing copies DRAFT to PUBLISHED.
+//  - Structure flags (`isEnabled`, `isVisible`) exist only on navigation and section settings.
+//  - Media rows point at files in a storage provider. Binary data is never stored in MySQL.
+//  - Foreign keys to Media and categories use Restrict so assets and taxonomy cannot vanish by accident.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/* ───────────────────────────── Enums ───────────────────────────── */
+
+enum AdminRole {
+  SUPER_ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum AdminStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
+}
+
+enum ContentState {
+  DRAFT
+  PUBLISHED
+}
+
+enum ProjectStage {
+  COMPLETED
+  IN_PROGRESS
+  MAINTENANCE
+  ARCHIVED
+}
+
+/// Drives the generic illustrative visual used when a project has no screenshot.
+enum VisualKind {
+  WEBSITE
+  WEB_MOBILE
+  MOBILE
+  SYSTEM
+}
+
+enum SectionKey {
+  HERO
+  ABOUT
+  SKILLS
+  WORK
+  CERTIFICATIONS
+  EXPERIENCE
+  ACHIEVEMENTS
+  CONTACT
+}
+
+enum SocialPlatform {
+  GITHUB
+  LINKEDIN
+  BEHANCE
+  DRIBBBLE
+  X
+  YOUTUBE
+  INSTAGRAM
+  WEBSITE
+  OTHER
+}
+
+enum MessageStatus {
+  NEW
+  READ
+  ARCHIVED
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum StorageProvider {
+  LOCAL
+  S3
+}
+
+enum Language {
+  EN
+  AR
+}
+
+/* ───────────────────────────── Authentication ───────────────────────────── */
+
+model AdminUser {
+  id           String      @id @default(cuid())
+  name         String      @db.VarChar(120)
+  email        String      @unique @db.VarChar(190)
+  passwordHash String      @db.VarChar(255)
+  role         AdminRole   @default(EDITOR)
+  status       AdminStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sessions  AdminSession[]
+  auditLogs AuditLog[]
+  media     Media[]
+
+  @@index([role, status])
+}
+
+model AdminSession {
+  id         String    @id @default(cuid())
+  userId     String
+  /// SHA-256 of the random session token. The token itself is never stored.
+  tokenHash  String    @unique @db.VarChar(64)
+  userAgent  String?   @db.VarChar(255)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/* ───────────────────────────── Media ───────────────────────────── */
+
+model Media {
+  id              Int             @id @default(autoincrement())
+  originalName    String          @db.VarChar(255)
+  title           String?         @db.VarChar(255)
+  storageKey      String          @unique @db.VarChar(255)
+  publicUrl       String          @db.VarChar(1024)
+  mimeType        String          @db.VarChar(120)
+  kind            MediaKind
+  fileSize        Int
+  width           Int?
+  height          Int?
+  checksum        String?         @db.VarChar(64)
+  altText         String?         @db.VarChar(300)
+  altTextAr       String?         @db.VarChar(300)
+  storageProvider StorageProvider @default(LOCAL)
+  uploadedById    String?
+  createdAt       DateTime        @default(now())
+
+  uploadedBy AdminUser? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  // Back-relations (every place that may reference a media row)
+  profileAvatars      Profile[]      @relation("ProfileAvatar")
+  profileResumes      Profile[]      @relation("ProfileResume")
+  heroMp4             Hero[]         @relation("HeroMp4")
+  heroWebm            Hero[]         @relation("HeroWebm")
+  heroPosters         Hero[]         @relation("HeroPoster")
+  heroFallbacks       Hero[]         @relation("HeroFallback")
+  aboutPortraits      About[]        @relation("AboutPortrait")
+  skillLogos          Skill[]
+  projectMedia        ProjectMedia[]
+  projectOgImages     Project[]      @relation("ProjectOg")
+  certificationImages Certification[]
+  achievementLogos    Achievement[]
+  seoOgImages         SeoSettings[]
+  siteFavicons        SiteSettings[] @relation("SiteFavicon")
+  siteLogos           SiteSettings[] @relation("SiteLogo")
+
+  @@index([kind])
+  @@index([createdAt])
+}
+
+/* ───────────────────────────── Singletons (draft + published rows) ───────────────────────────── */
+
+model Profile {
+  id    Int          @id @default(autoincrement())
+  state ContentState @unique
+
+  fullName      String  @db.VarChar(160)
+  fullNameAr    String? @db.VarChar(160)
+  displayName   String  @db.VarChar(160)
+  displayNameAr String? @db.VarChar(160)
+  firstName     String  @db.VarChar(80)
+  firstNameAr   String? @db.VarChar(80)
+  initials      String  @db.VarChar(6)
+
+  professionalTitle   String  @db.VarChar(160)
+  professionalTitleAr String? @db.VarChar(160)
+  /// Public role line exactly as the owner wants it shown, e.g. "A | B".
+  roleLine            String? @db.VarChar(200)
+  roleLineAr          String? @db.VarChar(200)
+  tagline             String? @db.VarChar(255)
+  taglineAr           String? @db.VarChar(255)
+  expertise           String? @db.VarChar(255)
+  expertiseAr         String? @db.VarChar(255)
+  audience            String? @db.VarChar(255)
+  audienceAr          String? @db.VarChar(255)
+  location            String? @db.VarChar(160)
+  locationAr          String? @db.VarChar(160)
+
+  publicEmail String? @db.VarChar(190)
+  publicPhone String? @db.VarChar(40)
+
+  biography                String? @db.Text
+  biographyAr              String? @db.Text
+  shortBiography           String? @db.Text
+  shortBiographyAr         String? @db.Text
+  professionalStatement    String? @db.Text
+  professionalStatementAr  String? @db.Text
+
+  avatarMediaId Int?
+  resumeMediaId Int?
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  avatar Media? @relation("ProfileAvatar", fields: [avatarMediaId], references: [id], onDelete: Restrict)
+  resume Media? @relation("ProfileResume", fields: [resumeMediaId], references: [id], onDelete: Restrict)
+
+  @@index([avatarMediaId])
+  @@index([resumeMediaId])
+}
+
+model Hero {
+  id    Int          @id @default(autoincrement())
+  state ContentState @unique
+
+  /// Optional override of the h1. Empty means "use the profile display name".
+  headline      String? @db.VarChar(200)
+  headlineAr    String? @db.VarChar(200)
+  subtitle      String? @db.VarChar(200)
+  subtitleAr    String? @db.VarChar(200)
+  description   String? @db.Text
+  descriptionAr String? @db.Text
+  /// Outlined ghost word behind the portrait. Empty means "use the profile first name".
+  backgroundWord   String? @db.VarChar(60)
+  backgroundWordAr String? @db.VarChar(60)
+
+  primaryButtonText    String? @db.VarChar(80)
+  primaryButtonTextAr  String? @db.VarChar(80)
+  primaryButtonUrl     String? @db.VarChar(512)
+  secondaryButtonText   String? @db.VarChar(80)
+  secondaryButtonTextAr String? @db.VarChar(80)
+  secondaryButtonUrl    String? @db.VarChar(512)
+
+  audioEnabled Boolean @default(true)
+
+  videoMp4MediaId       Int?
+  videoWebmMediaId      Int?
+  posterMediaId         Int?
+  fallbackImageMediaId  Int?
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  videoMp4      Media? @relation("HeroMp4", fields: [videoMp4MediaId], references: [id], onDelete: Restrict)
+  videoWebm     Media? @relation("HeroWebm", fields: [videoWebmMediaId], references: [id], onDelete: Restrict)
+  poster        Media? @relation("HeroPoster", fields: [posterMediaId], references: [id], onDelete: Restrict)
+  fallbackImage Media? @relation("HeroFallback", fields: [fallbackImageMediaId], references: [id], onDelete: Restrict)
+
+  @@index([videoMp4MediaId])
+  @@index([videoWebmMediaId])
+  @@index([posterMediaId])
+  @@index([fallbackImageMediaId])
+}
+
+model About {
+  id    Int          @id @default(autoincrement())
+  state ContentState @unique
+
+  heading       String? @db.VarChar(160)
+  headingAr     String? @db.VarChar(160)
+  introduction   String? @db.Text
+  introductionAr String? @db.Text
+  fullDescription   String? @db.Text
+  fullDescriptionAr String? @db.Text
+  quote   String? @db.VarChar(500)
+  quoteAr String? @db.VarChar(500)
+
+  /// Text in the black header of the ID card, e.g. "DEVELOPER ID".
+  idCardTitle         String? @db.VarChar(60)
+  idCardTitleAr       String? @db.VarChar(60)
+  idCardSubtitle      String? @db.VarChar(120)
+  idCardSubtitleAr    String? @db.VarChar(120)
+  idCardBackContent   String? @db.VarChar(500)
+  idCardBackContentAr String? @db.VarChar(500)
+  idCardPortraitMediaId Int?
+  showIdCard Boolean @default(true)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  idCardPortrait Media? @relation("AboutPortrait", fields: [idCardPortraitMediaId], references: [id], onDelete: Restrict)
+
+  @@index([idCardPortraitMediaId])
+}
+
+model ContactSettings {
+  id    Int          @id @default(autoincrement())
+  state ContentState @unique
+
+  heading       String? @db.VarChar(200)
+  headingAr     String? @db.VarChar(200)
+  description   String? @db.VarChar(500)
+  descriptionAr String? @db.VarChar(500)
+  publicEmail String? @db.VarChar(190)
+  publicPhone String? @db.VarChar(40)
+  whatsappUrl String? @db.VarChar(512)
+  showPhone         Boolean @default(false)
+  showWhatsapp      Boolean @default(false)
+  enableContactForm Boolean @default(false)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
+model SiteSettings {
+  id    Int          @id @default(autoincrement())
+  state ContentState @unique
+
+  siteName          String   @db.VarChar(160)
+  siteNameAr        String?  @db.VarChar(160)
+  siteDescription   String?  @db.VarChar(500)
+  siteDescriptionAr String?  @db.VarChar(500)
+  siteUrl           String?  @db.VarChar(512)
+  primaryLanguage   Language @default(EN)
+  footerText        String?  @db.VarChar(300)
+  footerTextAr      String?  @db.VarChar(300)
+  maintenanceMode   Boolean  @default(false)
+
+  faviconMediaId Int?
+  logoMediaId    Int?
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  favicon Media? @relation("SiteFavicon", fields: [faviconMediaId], references: [id], onDelete: Restrict)
+  logo    Media? @relation("SiteLogo", fields: [logoMediaId], references: [id], onDelete: Restrict)
+
+  @@index([faviconMediaId])
+  @@index([logoMediaId])
+}
+
+model SeoSettings {
+  id      Int          @id @default(autoincrement())
+  /// "home" today. More page keys can be added later without a schema change.
+  pageKey String       @db.VarChar(60)
+  state   ContentState
+
+  title            String? @db.VarChar(200)
+  titleAr          String? @db.VarChar(200)
+  description      String? @db.VarChar(500)
+  descriptionAr    String? @db.VarChar(500)
+  canonicalUrl     String? @db.VarChar(512)
+  ogTitle          String? @db.VarChar(200)
+  ogTitleAr        String? @db.VarChar(200)
+  ogDescription    String? @db.VarChar(500)
+  ogDescriptionAr  String? @db.VarChar(500)
+  ogImageMediaId   Int?
+  robotsIndex      Boolean @default(true)
+  robotsFollow     Boolean @default(true)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  ogImage Media? @relation(fields: [ogImageMediaId], references: [id], onDelete: Restrict)
+
+  @@unique([pageKey, state])
+  @@index([ogImageMediaId])
+}
+
+/* ───────────────────────────── About facts ───────────────────────────── */
+
+/// Extra facts shown in the About "Quick facts" list, after the built-in ones from the profile.
+model AboutFact {
+  id        Int           @id @default(autoincrement())
+  label     String        @db.VarChar(80)
+  labelAr   String?       @db.VarChar(80)
+  value     String        @db.VarChar(255)
+  valueAr   String?       @db.VarChar(255)
+  icon      String?       @db.VarChar(60)
+  sortOrder Int           @default(0)
+  status    PublishStatus @default(DRAFT)
+
+  @@index([status, sortOrder])
+}
+
+/* ───────────────────────────── Skills ───────────────────────────── */
+
+model SkillCategory {
+  id            Int           @id @default(autoincrement())
+  name          String        @db.VarChar(80)
+  nameAr        String?       @db.VarChar(80)
+  slug          String        @unique @db.VarChar(100)
+  description   String?       @db.VarChar(300)
+  descriptionAr String?       @db.VarChar(300)
+  sortOrder     Int           @default(0)
+  status        PublishStatus @default(DRAFT)
+
+  skills Skill[]
+
+  @@index([status, sortOrder])
+}
+
+model Skill {
+  id                    Int           @id @default(autoincrement())
+  name                  String        @db.VarChar(100)
+  slug                  String        @unique @db.VarChar(120)
+  /// Short periodic-table symbol, 1 to 3 characters.
+  symbol                String        @db.VarChar(3)
+  categoryId            Int
+  logoMediaId           Int?
+  /// Key of a bundled brand or concept logo (for example "react"). Used when no media is uploaded.
+  externalLogoReference String?       @db.VarChar(60)
+  description           String?       @db.VarChar(300)
+  descriptionAr         String?       @db.VarChar(300)
+  sortOrder             Int           @default(0)
+  status                PublishStatus @default(DRAFT)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  category SkillCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  logo     Media?        @relation(fields: [logoMediaId], references: [id], onDelete: Restrict)
+  projects ProjectSkill[]
+
+  @@index([categoryId, sortOrder])
+  @@index([status])
+  @@index([logoMediaId])
+}
+
+/* ───────────────────────────── Projects ───────────────────────────── */
+
+model ProjectCategory {
+  id         Int        @id @default(autoincrement())
+  name       String     @db.VarChar(80)
+  nameAr     String?    @db.VarChar(80)
+  slug       String     @unique @db.VarChar(100)
+  visualKind VisualKind @default(WEBSITE)
+  sortOrder  Int        @default(0)
+
+  projects Project[]
+}
+
+model Project {
+  id         Int           @id @default(autoincrement())
+  title      String        @db.VarChar(160)
+  titleAr    String?       @db.VarChar(160)
+  slug       String        @unique @db.VarChar(160)
+  categoryId Int
+
+  shortDescription    String? @db.VarChar(600)
+  shortDescriptionAr  String? @db.VarChar(600)
+  fullDescription     String? @db.Text
+  fullDescriptionAr   String? @db.Text
+  problemStatement    String? @db.Text
+  problemStatementAr  String? @db.Text
+  solution            String? @db.Text
+  solutionAr          String? @db.Text
+  role                String? @db.VarChar(255)
+  roleAr              String? @db.VarChar(255)
+  stage               ProjectStage @default(COMPLETED)
+
+  liveUrl       String? @db.VarChar(512)
+  repositoryUrl String? @db.VarChar(512)
+
+  featured    Boolean       @default(false)
+  sortOrder   Int           @default(0)
+  status      PublishStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  seoTitle          String? @db.VarChar(200)
+  seoTitleAr        String? @db.VarChar(200)
+  seoDescription    String? @db.VarChar(500)
+  seoDescriptionAr  String? @db.VarChar(500)
+  canonicalUrl      String? @db.VarChar(512)
+  ogImageMediaId    Int?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  category ProjectCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  ogImage  Media?          @relation("ProjectOg", fields: [ogImageMediaId], references: [id], onDelete: Restrict)
+  features ProjectFeature[]
+  media    ProjectMedia[]
+  skills   ProjectSkill[]
+
+  @@index([status, sortOrder])
+  @@index([categoryId])
+  @@index([featured])
+  @@index([ogImageMediaId])
+}
+
+model ProjectFeature {
+  id            Int     @id @default(autoincrement())
+  projectId     Int
+  title         String  @db.VarChar(160)
+  titleAr       String? @db.VarChar(160)
+  description   String? @db.VarChar(500)
+  descriptionAr String? @db.VarChar(500)
+  sortOrder     Int     @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+}
+
+model ProjectMedia {
+  id            Int     @id @default(autoincrement())
+  projectId     Int
+  mediaId       Int
+  caption       String? @db.VarChar(300)
+  captionAr     String? @db.VarChar(300)
+  isCover       Boolean @default(false)
+  /// True when the image is an illustration, not a real screenshot. The site labels it as such.
+  isIllustrative Boolean @default(false)
+  sortOrder     Int     @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, mediaId])
+  @@index([projectId, sortOrder])
+  @@index([mediaId])
+}
+
+model ProjectSkill {
+  projectId Int
+  skillId   Int
+  sortOrder Int @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  skill   Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, skillId])
+  @@index([skillId])
+}
+
+/* ───────────────────────────── Experience, education, certifications, achievements ───────────────────────────── */
+
+model Experience {
+  id             Int           @id @default(autoincrement())
+  organization   String        @db.VarChar(160)
+  organizationAr String?       @db.VarChar(160)
+  position       String        @db.VarChar(160)
+  positionAr     String?       @db.VarChar(160)
+  employmentType String?       @db.VarChar(60)
+  location       String?       @db.VarChar(160)
+  locationAr     String?       @db.VarChar(160)
+  startDate      DateTime      @db.Date
+  endDate        DateTime?     @db.Date
+  isCurrent      Boolean       @default(false)
+  description    String?       @db.Text
+  descriptionAr  String?       @db.Text
+  sortOrder      Int           @default(0)
+  status         PublishStatus @default(DRAFT)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status, startDate])
+}
+
+model Education {
+  id              Int           @id @default(autoincrement())
+  institution     String        @db.VarChar(160)
+  institutionAr   String?       @db.VarChar(160)
+  qualification   String        @db.VarChar(160)
+  qualificationAr String?       @db.VarChar(160)
+  fieldOfStudy    String?       @db.VarChar(160)
+  fieldOfStudyAr  String?       @db.VarChar(160)
+  startDate       DateTime?     @db.Date
+  endDate         DateTime?     @db.Date
+  description     String?       @db.Text
+  descriptionAr   String?       @db.Text
+  sortOrder       Int           @default(0)
+  status          PublishStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status, endDate])
+}
+
+model Certification {
+  id              Int           @id @default(autoincrement())
+  title           String        @db.VarChar(200)
+  titleAr         String?       @db.VarChar(200)
+  issuer          String        @db.VarChar(160)
+  issuerAr        String?       @db.VarChar(160)
+  issueDate       DateTime?     @db.Date
+  verificationUrl String?       @db.VarChar(512)
+  description     String?       @db.VarChar(500)
+  descriptionAr   String?       @db.VarChar(500)
+  mediaId         Int?
+  sortOrder       Int           @default(0)
+  status          PublishStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  media Media? @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@index([status, sortOrder])
+  @@index([mediaId])
+}
+
+model Achievement {
+  id              Int           @id @default(autoincrement())
+  title           String        @db.VarChar(200)
+  titleAr         String?       @db.VarChar(200)
+  description     String?       @db.VarChar(500)
+  descriptionAr   String?       @db.VarChar(500)
+  /// Only exact, owner-confirmed figures. Never estimated.
+  numericValue    Int?
+  numericSuffix   String?       @db.VarChar(10)
+  platform        String?       @db.VarChar(120)
+  logoMediaId     Int?
+  /// Key of a bundled brand logo, used when no media is uploaded.
+  logoKey         String?       @db.VarChar(60)
+  verificationUrl String?       @db.VarChar(512)
+  sortOrder       Int           @default(0)
+  status          PublishStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  logo Media? @relation(fields: [logoMediaId], references: [id], onDelete: Restrict)
+
+  @@index([status, sortOrder])
+  @@index([logoMediaId])
+}
+
+/* ───────────────────────────── Links, messages, structure ───────────────────────────── */
+
+model SocialLink {
+  id        Int            @id @default(autoincrement())
+  platform  SocialPlatform
+  label     String         @db.VarChar(80)
+  labelAr   String?        @db.VarChar(80)
+  /// Text shown next to the link, e.g. a username.
+  handle    String?        @db.VarChar(120)
+  url       String         @db.VarChar(512)
+  icon      String?        @db.VarChar(60)
+  sortOrder Int            @default(0)
+  status    PublishStatus  @default(DRAFT)
+
+  @@index([status, sortOrder])
+}
+
+model ContactMessage {
+  id        String        @id @default(cuid())
+  name      String        @db.VarChar(120)
+  email     String        @db.VarChar(190)
+  subject   String?       @db.VarChar(200)
+  message   String        @db.Text
+  status    MessageStatus @default(NEW)
+  /// Salted hash of the sender IP, used only for rate limiting and spam review.
+  ipHash    String?       @db.VarChar(64)
+  createdAt DateTime      @default(now())
+  readAt    DateTime?
+
+  @@index([status, createdAt])
+}
+
+model NavigationItem {
+  id         Int         @id @default(autoincrement())
+  /// Stable section identifier. Null for an external or custom link.
+  sectionKey SectionKey? @unique
+  label      String      @db.VarChar(80)
+  labelAr    String?     @db.VarChar(80)
+  targetUrl  String?     @db.VarChar(512)
+  sortOrder  Int         @default(0)
+  isVisible  Boolean     @default(true)
+
+  @@index([isVisible, sortOrder])
+}
+
+model SectionSetting {
+  id            Int        @id @default(autoincrement())
+  sectionKey    SectionKey @unique
+  displayName   String     @db.VarChar(80)
+  displayNameAr String?    @db.VarChar(80)
+  isEnabled     Boolean    @default(true)
+  sortOrder     Int        @default(0)
+  /// Component-specific options only (for example { "showNextCard": false }).
+  configuration Json?
+
+  @@index([isEnabled, sortOrder])
+}
+
+/* ───────────────────────────── Audit ───────────────────────────── */
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?  @db.VarChar(190)
+  action     String   @db.VarChar(80)
+  entityType String   @db.VarChar(80)
+  entityId   String?  @db.VarChar(80)
+  /// Never contains passwords, tokens or other secrets.
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}

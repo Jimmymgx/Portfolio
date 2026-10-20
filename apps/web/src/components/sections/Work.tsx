@@ -19,6 +19,8 @@ export interface ProjectView {
   liveUrl: string | null;
   repoUrl: string | null;
   screenshot: string | null;
+  /** The image is an illustration, not a real screenshot. It is labelled as such. */
+  screenshotIllustrative?: boolean;
 }
 
 const Arrow = () => (
@@ -159,8 +161,11 @@ export default function Work({
 
                     <div className={s.visual}>
                       {p.screenshot ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.screenshot} alt={`${p.title}`} loading="lazy" className={s.shot} />
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.screenshot} alt={`${p.title}`} loading="lazy" className={s.shot} />
+                          {p.screenshotIllustrative && <span className="draft-tag">{t.illustrative}</span>}
+                        </>
                       ) : (
                         <MiniUI kind={p.kind} caption={t.illustrative} />
                       )}

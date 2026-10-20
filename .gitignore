@@ -1,6 +1,22 @@
 node_modules
 .next
+.next-*
+dist
 out
+coverage
 *.tsbuildinfo
 next-env.d.ts
-.env*.local
+*.log
+
+# environment
+.env
+.env.*
+!.env.example
+
+# local media uploads (keep the folder)
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+
+# generated
+apps/api/src/generated
+apps/api/uploads-e2e

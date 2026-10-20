@@ -1,52 +1,30 @@
 import { Reveal } from "@/components/ui/Reveal";
 import SectionHeading from "@/components/ui/SectionHeading";
-import { PROFILE, isDraft, txt, type Content } from "@/lib/content";
 import { ui, type Locale } from "@/lib/i18n";
-import IdCard from "./IdCard";
+import IdCard, { type IdCardData } from "./IdCard";
 import s from "./About.module.css";
 
-const SOCIAL_LABEL = {
-  github: "github",
-  linkedin: "linkedin",
-  behance: "behance",
-  dribbble: "dribbble",
-  website: "website",
-} as const;
+/** Everything the About section shows, already resolved for one language. */
+export interface AboutModel {
+  lead: string | null;
+  leadDraft: boolean;
+  philosophy: string | null;
+  quote: string | null;
+  facts: { k: string; v: string; href?: string }[];
+  links: { id: string; label: string; url: string }[];
+  resumeUrl: string | null;
+  showIdCard: boolean;
+  card: IdCardData;
+}
 
-export default function About({
-  locale,
-  content,
-  number,
-}: {
-  locale: Locale;
-  content: Content;
-  number: string;
-}) {
+export default function About({ locale, number, data }: { locale: Locale; number: string; data: AboutModel }) {
   const t = ui(locale);
-  const name = txt(PROFILE.displayName, locale) ?? "";
-  const title = txt(PROFILE.title, locale) ?? "";
-  const roleLine = txt(PROFILE.roleLine, locale);
-  const expertise = txt(PROFILE.expertise, locale);
-  const audience = txt(PROFILE.audience, locale);
-  const location = txt(PROFILE.location, locale);
-  const bio = txt(PROFILE.bio, locale);
-  const summary = txt(PROFILE.summary, locale);
-  const philosophy = txt(PROFILE.philosophy, locale);
-  const quote = txt(PROFILE.quote, locale);
-  const lead = bio ?? summary;
-  const leadDraft = bio ? isDraft(PROFILE.bio.status) : isDraft(PROFILE.summary.status);
-
-  const facts: { k: string; v: string; href?: string }[] = [];
-  if (location) facts.push({ k: t.location, v: location });
-  if (roleLine) facts.push({ k: t.role, v: roleLine });
-  if (expertise) facts.push({ k: t.expertise, v: expertise });
-  if (audience) facts.push({ k: t.audience, v: audience });
-  if (content.email) facts.push({ k: t.email, v: content.email, href: `mailto:${content.email}` });
+  const { lead, leadDraft, philosophy, quote, facts, links, resumeUrl, showIdCard, card } = data;
 
   return (
     <section id="about" className="section" aria-labelledby="about-title">
       <div className="container-x">
-        <div className={s.grid}>
+        <div className={`${s.grid} ${showIdCard ? "" : s.noCard}`}>
           <div className={s.left}>
             <SectionHeading id="about-title" number={number} label={t.aboutLabel} lines={t.aboutTitle} />
             {lead && (
@@ -60,25 +38,19 @@ export default function About({
                 {philosophy}
               </Reveal>
             )}
-            {(content.social.length > 0 || PROFILE.resumeUrl) && (
+            {(links.length > 0 || resumeUrl) && (
               <Reveal i={3} className={s.links}>
-                {content.social.map((l) => (
-                  <a
-                    key={l.kind}
-                    href={l.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-ghost"
-                  >
-                    {t[SOCIAL_LABEL[l.kind]]}
+                {links.map((l) => (
+                  <a key={l.id} href={l.url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
+                    {l.label}
                     <span className="sr-only"> {t.opensNewTab}</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M7 17 17 7M8 7h9v9" />
                     </svg>
                   </a>
                 ))}
-                {PROFILE.resumeUrl && (
-                  <a href={PROFILE.resumeUrl} className="btn btn-primary" download>
+                {resumeUrl && (
+                  <a href={resumeUrl} className="btn btn-primary" download>
                     {t.resume}
                   </a>
                 )}
@@ -86,22 +58,11 @@ export default function About({
             )}
           </div>
 
-          <Reveal i={1} className={s.center}>
-            <IdCard
-              locale={locale}
-              data={{
-                header: txt(PROFILE.idCard.header, locale) ?? "ID",
-                name,
-                role: title,
-                avatar: PROFILE.avatarImage,
-                expertise,
-                roleLine,
-                email: content.email,
-                projects: content.projects.slice(0, 3).map((p) => p.title),
-                closing: txt(PROFILE.idCard.backClosing, locale),
-              }}
-            />
-          </Reveal>
+          {showIdCard && (
+            <Reveal i={1} className={s.center}>
+              <IdCard locale={locale} data={card} />
+            </Reveal>
+          )}
 
           <div className={s.right}>
             {facts.length > 0 && (
@@ -109,7 +70,7 @@ export default function About({
                 <h3 className="eyebrow">{t.quickFacts}</h3>
                 <dl className={s.facts}>
                   {facts.map((f) => (
-                    <div key={f.k} className={s.fact}>
+                    <div key={f.k + f.v} className={s.fact}>
                       <dt>{f.k}</dt>
                       <dd>{f.href ? <a href={f.href}>{f.v}</a> : f.v}</dd>
                     </div>

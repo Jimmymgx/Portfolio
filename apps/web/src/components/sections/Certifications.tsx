@@ -1,6 +1,5 @@
 import { Reveal } from "@/components/ui/Reveal";
 import SectionHeading from "@/components/ui/SectionHeading";
-import type { Certification } from "@/lib/data";
 import { type Locale } from "@/lib/i18n";
 import s from "./Certifications.module.css";
 
@@ -8,6 +7,14 @@ const COPY = {
   en: { label: "Certifications", title: ["Proof of", "practice."], count: "Certifications", verify: "Verify" },
   ar: { label: "الشهادات", title: ["إثبات", "الممارسة."], count: "شهادة", verify: "تحقق" },
 } as const;
+
+export interface CertView {
+  id: string | number;
+  name: string;
+  issuer: string;
+  date?: string | null;
+  url?: string | null;
+}
 
 const Arrow = () => (
   <svg className={s.arrow} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -22,7 +29,7 @@ export default function Certifications({
 }: {
   locale: Locale;
   number: string;
-  items: Certification[];
+  items: CertView[];
 }) {
   const c = COPY[locale];
   return (

@@ -3,22 +3,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "@/lib/hooks";
 import { ui, type Locale } from "@/lib/i18n";
+import ContactForm from "./ContactForm";
 import s from "./Contact.module.css";
 
 export interface ContactLink {
-  kind: "github" | "linkedin" | "behance" | "dribbble" | "website";
+  id: string;
+  label: string;
   url: string;
-  handle: string;
+  handle: string | null;
 }
 
 interface Props {
   locale: Locale;
   number: string;
   email: string | null;
+  phone?: string | null;
+  whatsappUrl?: string | null;
   links: ContactLink[];
+  /** Custom headline lines from the CMS. Empty uses the default "Let's build something together." */
+  headline?: string[] | null;
+  intro?: string | null;
+  /** API address for the contact form. Omit to hide the form. */
+  formApiUrl?: string | null;
 }
 
-export default function Contact({ locale, number, email, links }: Props) {
+export default function Contact({ locale, number, email, phone, whatsappUrl, links, headline, intro, formApiUrl }: Props) {
   const t = ui(locale);
   const reduce = useReducedMotion();
   const headRef = useRef<HTMLHeadingElement>(null);
@@ -100,11 +109,18 @@ export default function Contact({ locale, number, email, links }: Props) {
     [],
   );
 
-  const words = t.contactHeadline;
+  const custom = headline && headline.length > 0 ? headline : null;
+  const words: readonly string[] = custom ?? t.contactHeadline;
   const splitLetters = locale !== "ar";
   const full = words.join(" ");
-  // English: one word per line, hopping per letter. Arabic: two lines, hopping per word (keeps letters joined).
-  const lines: string[][] = splitLetters ? words.map((w) => [w]) : [words.slice(0, 2) as string[], words.slice(2) as string[]];
+  // English: one line per entry, hopping per letter. Arabic: hopping per word (keeps letters joined).
+  const lines: string[][] = custom
+    ? splitLetters
+      ? words.map((w) => [w])
+      : words.map((w) => w.split(" "))
+    : splitLetters
+      ? words.map((w) => [w])
+      : [words.slice(0, 2) as string[], words.slice(2) as string[]];
 
   return (
     <section id="contact" className={`section ${s.section}`} aria-labelledby="contact-title">
@@ -152,7 +168,7 @@ export default function Contact({ locale, number, email, links }: Props) {
 
         <div className={s.channels}>
           <p className={`${s.intro} rv`} style={{ ["--i" as string]: 1 }}>
-            {t.contactIntro}
+            {intro ?? t.contactIntro}
           </p>
 
           <ul className={s.list}>
@@ -172,11 +188,34 @@ export default function Contact({ locale, number, email, links }: Props) {
                 </button>
               </li>
             )}
+            {phone && (
+              <li className={`${s.row} rv`} style={{ ["--i" as string]: 3 }}>
+                <span className={s.k}>{t.phone}</span>
+                <a href={`tel:${phone.replace(/[^+\d]/g, "")}`} className={s.v} dir="ltr">
+                  {phone}
+                </a>
+                <span className={s.go} aria-hidden="true">
+                  ↗
+                </span>
+              </li>
+            )}
+            {whatsappUrl && (
+              <li className={`${s.row} rv`} style={{ ["--i" as string]: 4 }}>
+                <span className={s.k}>{t.whatsapp}</span>
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className={s.v}>
+                  {t.whatsapp}
+                  <span className="sr-only"> {t.opensNewTab}</span>
+                </a>
+                <span className={s.go} aria-hidden="true">
+                  ↗
+                </span>
+              </li>
+            )}
             {links.map((l, n) => (
-              <li key={l.kind} className={`${s.row} rv`} style={{ ["--i" as string]: 3 + n }}>
-                <span className={s.k}>{t[l.kind]}</span>
+              <li key={l.id} className={`${s.row} rv`} style={{ ["--i" as string]: 5 + n }}>
+                <span className={s.k}>{l.label}</span>
                 <a href={l.url} target="_blank" rel="noopener noreferrer" className={s.v}>
-                  {l.handle}
+                  {l.handle ?? l.label}
                   <span className="sr-only"> {t.opensNewTab}</span>
                 </a>
                 <span className={s.go} aria-hidden="true">
@@ -189,6 +228,12 @@ export default function Contact({ locale, number, email, links }: Props) {
           <p className={`${s.toast} ${copied !== "idle" ? s.toastOn : ""}`} role="status" aria-live="polite">
             {copied === "ok" ? t.copied : copied === "fail" ? t.copyFailed : ""}
           </p>
+
+          {formApiUrl && (
+            <div className={`${s.formWrap} rv`} style={{ ["--i" as string]: 6 }}>
+              <ContactForm locale={locale} apiUrl={formApiUrl} />
+            </div>
+          )}
         </div>
       </div>
     </section>

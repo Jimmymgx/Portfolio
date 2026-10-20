@@ -108,26 +108,42 @@ export const CONCEPT: Record<string, ReactNode> = {
   ),
 };
 
-export function isBrand(key?: string): boolean {
+export function isBrand(key?: string | null): boolean {
   return !!key && key in BRAND;
 }
 
-export function brandGlow(key?: string): string | null {
+export function brandGlow(key?: string | null): string | null {
   return key && BRAND[key] ? BRAND[key].glow : null;
 }
 
 interface Props {
-  logo?: string;
+  logo?: string | null;
+  /** Uploaded logo (from the media library). Used when no bundled logo key matches. */
+  src?: string | null;
   symbol: string;
   size?: number;
   className?: string;
 }
 
-export default function TechLogo({ logo, symbol, size = 64, className }: Props) {
+export default function TechLogo({ logo, src, symbol, size = 64, className }: Props) {
   if (isBrand(logo)) {
     return (
       <img
         src={BRAND[logo!].src}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        draggable={false}
+        className={className}
+        style={{ width: size, height: size, objectFit: "contain" }}
+      />
+    );
+  }
+  if (src) {
+    return (
+      <img
+        src={src}
         alt=""
         width={size}
         height={size}

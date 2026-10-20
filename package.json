@@ -1,0 +1,23 @@
+{
+  "name": "portfolio-platform",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:packages": "pnpm --filter @portfolio/validation build && pnpm --filter @portfolio/types build && pnpm --filter @portfolio/api-client build",
+    "dev": "pnpm build:packages && pnpm --parallel --filter @portfolio/web --filter @portfolio/admin --filter @portfolio/api dev",
+    "dev:web": "pnpm --filter @portfolio/web dev",
+    "dev:admin": "pnpm --filter @portfolio/admin dev",
+    "dev:api": "pnpm --filter @portfolio/api dev",
+    "build": "pnpm build:packages && pnpm --filter @portfolio/api build && pnpm --filter @portfolio/web build && pnpm --filter @portfolio/admin build",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck",
+    "test": "pnpm build:packages && pnpm --filter @portfolio/api test",
+    "db:validate": "pnpm --filter @portfolio/api prisma:validate",
+    "db:migrate": "pnpm --filter @portfolio/api prisma:migrate:deploy",
+    "admin:create": "pnpm --filter @portfolio/api admin:create",
+    "content:import": "pnpm --filter @portfolio/api content:import"
+  }
+}

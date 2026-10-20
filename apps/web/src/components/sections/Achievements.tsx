@@ -3,8 +3,6 @@
 import { useEffect, useRef } from "react";
 import SectionHeading from "@/components/ui/SectionHeading";
 import TechLogo, { brandGlow } from "@/components/ui/TechLogo";
-import { txt } from "@/lib/content";
-import type { Achievement } from "@/lib/data";
 import { useReducedMotion } from "@/lib/hooks";
 import type { Locale } from "@/lib/i18n";
 import s from "./Achievements.module.css";
@@ -13,6 +11,18 @@ const COPY = {
   en: { label: "Achievements", title: ["Moments", "worth noting."], progress: "Scroll progress" },
   ar: { label: "الإنجازات", title: ["لحظات", "تستحق الذكر."], progress: "تقدم التمرير" },
 } as const;
+
+export interface AchView {
+  id: string | number;
+  title: string | null;
+  caption: string | null;
+  detail: string | null;
+  figure?: { value: number; suffix?: string | null } | null;
+  /** Key of a bundled logo. */
+  logo?: string | null;
+  /** Uploaded logo URL. */
+  logoUrl?: string | null;
+}
 
 const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
 
@@ -23,7 +33,7 @@ export default function Achievements({
 }: {
   locale: Locale;
   number: string;
-  items: Achievement[];
+  items: AchView[];
 }) {
   const c = COPY[locale];
   const reduce = useReducedMotion();
@@ -123,9 +133,7 @@ export default function Achievements({
 
           <ul className={s.track} ref={track}>
             {items.map((a, n) => {
-              const title = txt(a.title, locale);
-              const caption = a.caption ? txt(a.caption, locale) : null;
-              const detail = a.detail ? txt(a.detail, locale) : null;
+              const { title, caption, detail } = a;
               const glow = brandGlow(a.logo);
               return (
                 <li
@@ -136,7 +144,7 @@ export default function Achievements({
                 >
                   <div className={s.top}>
                     <span className={s.logo}>
-                      <TechLogo logo={a.logo} symbol={String(n + 1)} size={34} />
+                      <TechLogo logo={a.logo} src={a.logoUrl} symbol={String(n + 1)} size={34} />
                     </span>
                     <span className={s.idx}>{String(n + 1).padStart(2, "0")}</span>
                   </div>

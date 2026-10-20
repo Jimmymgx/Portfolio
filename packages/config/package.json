@@ -1,0 +1,10 @@
+{
+  "name": "@portfolio/config",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./ports": "./ports.json",
+    "./tsconfig.node.json": "./tsconfig.node.json"
+  }
+}

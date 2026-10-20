@@ -1,119 +1,74 @@
-# Mohamed Gamal — Portfolio
+# Portfolio platform
 
-Bilingual (English and Arabic, RTL) personal portfolio built with Next.js 15, React 19,
-TypeScript and Tailwind CSS 4. Motion uses CSS, IntersectionObserver and
-`requestAnimationFrame` only, plus Lenis for smooth scrolling. No GSAP, Three.js or WebGL.
+A bilingual (English and Arabic) personal portfolio with its own content management system.
 
-## Run it
+| App | What it is | Port |
+| --- | --- | --- |
+| `apps/web` | The public website (Next.js 15). Design and animation unchanged. | 3000 |
+| `apps/admin` | The CMS dashboard (Next.js 15, Tailwind 4, shadcn-style components, TanStack Query). | 3001 |
+| `apps/api` | REST API (Express 5, TypeScript, Prisma 7, MySQL) with Swagger at `/api/docs`. | 4000 |
+| `packages/*` | Shared Zod schemas (`validation`), TypeScript contracts (`types`), typed clients (`api-client`), config. | |
+
+Everything the owner edits in the dashboard is published through the API to the website without a rebuild. If the API is unreachable, the website falls back to the bundled content in `apps/web/src/lib/data.ts`, so it never breaks.
+
+## Quick start
 
 ```bash
-npm install
-npm run dev        # http://localhost:3000  (redirects to /en; Arabic is /ar)
-npm run build      # production build
-npm start          # serve the production build
-npm run typecheck
+corepack enable                       # once
+pnpm install
+cp .env.example .env                  # fill in DATABASE_URL and SESSION_SECRET
+cp apps/web/.env.example   apps/web/.env.local
+cp apps/admin/.env.example apps/admin/.env.local
+
+# database: follow docs/deployment/database-setup.md (nothing is applied automatically)
+pnpm db:migrate
+pnpm admin:create -- --email you@example.com --name "Your Name"
+pnpm content:import -- --dry-run      # optional: load the current website content
+
+pnpm dev                              # website :3000, dashboard :3001, API :4000
 ```
 
-### Review modes
+The website alone works without a database: `pnpm dev:web`.
 
-| Command | Shows |
+## Commands
+
+| Command | Does |
 | --- | --- |
-| `NEXT_PUBLIC_SHOW_DRAFTS=1 npm run dev` | Unapproved drafts (hero intro, bio, project descriptions) with a DRAFT tag |
-| `NEXT_PUBLIC_SAMPLE_CONTENT=1 npm run dev` | Clearly fake sample skills, experience, certifications and achievements, only for testing layout. A banner says "NOT REAL". Never enable in production. |
+| `pnpm dev` / `dev:web` / `dev:admin` / `dev:api` | Run everything or one app |
+| `pnpm build` | Build packages, API, website and dashboard |
+| `pnpm typecheck` | Type-check all workspaces |
+| `pnpm test` | API tests (in-memory fake database) |
+| `pnpm db:validate` / `pnpm db:migrate` | Validate the schema / apply migrations (`prisma migrate deploy`) |
+| `pnpm admin:create` | Create an administrator (hidden password prompt) |
+| `pnpm content:import` | One-time, idempotent import of the static content (`-- --dry-run` first) |
 
-On Windows PowerShell use `$env:NEXT_PUBLIC_SHOW_DRAFTS="1"; npm run dev`.
+## Documentation
 
-## Where content lives
+| | |
+| --- | --- |
+| Architecture | [audit of the original site](docs/architecture/existing-project-audit.md), [system architecture](docs/architecture/system-architecture.md), [database design](docs/architecture/database-design.md), [folder structure](docs/architecture/folder-structure.md) |
+| API | [API guide](docs/api/api-guide.md) and the live reference at `/api/docs` |
+| CMS | [user guide](docs/cms/cms-user-guide.md), [publishing workflow](docs/cms/publishing-workflow.md) |
+| Deployment | [local development](docs/deployment/local-development.md), [environment variables](docs/deployment/environment-variables.md), [database setup](docs/deployment/database-setup.md), [production deployment](docs/deployment/production-deployment.md) |
+| Content decisions | [discovery log](content/discovery.md), [open questions](content/pending-questions.md) |
 
-Everything personal is in [src/lib/data.ts](src/lib/data.ts). Components read from it and
-never hardcode personal facts. Every entry has a status:
+## Content rules (unchanged from the original brief)
 
-`confirmed` · `draft` · `awaiting_approval` · `missing` · `excluded`
+- Only the owner's own, approved information is published. Nothing comes from a résumé; nothing is invented.
+- Text awaiting approval stays a draft until the owner publishes it.
+- The avatar is labelled "Illustrated avatar" and project visuals without screenshots are labelled "Illustrative UI".
+- Credentials, engineer names and internal notes from the owner's project sheet are never stored anywhere in this repository.
 
-Only `confirmed` content is published. Approve a draft by changing its status to
-`"confirmed"`. Empty sections disappear from the page and the navigation automatically,
-and section numbers ("03 — Selected Work") follow the published order.
-
-Tracking files: [content/discovery.md](content/discovery.md) (what was confirmed, drafted, excluded)
-and [content/pending-questions.md](content/pending-questions.md) (open questions).
-
-## Common edits
-
-- **Personal info, tagline, bio:** edit `PROFILE`. Pick a tagline from `taglineOptions`, copy it into `tagline`, set its status to `confirmed`.
-- **Links:** edit `SOCIAL_LINKS` (GitHub, LinkedIn, Behance, Dribbble, website) and `CONTACT`.
-- **Skills:** add groups and skills to `SKILL_GROUPS`. Each skill has an `id`, `name`, 1–3 letter `symbol`, optional `logo` key and `projectIds`. Logo keys come from `BRAND` and `CONCEPT` in [src/components/ui/TechLogo.tsx](src/components/ui/TechLogo.tsx). Brand SVGs are in `public/logos` (Devicon, MIT licence, included). No proficiency levels are shown.
-- **Projects:** add an object to `PROJECTS` (`id`, `title`, `kind`, `description`, `features`, `technologies`, `links`, `screenshot`). Order in the array is the gallery order.
-- **Replace project visuals:** put an image in `public/projects/` and set `screenshot: "/projects/my-project.webp"`. Without one, a generic visual labelled "Illustrative UI" is shown.
-- **Experience and education:** fill `EXPERIENCE` and `EDUCATION`. They merge into one timeline, newest first.
-- **Certifications and achievements:** fill `CERTIFICATIONS` / `ACHIEVEMENTS` and set the section to `true` in `SITE_SETTINGS.sections`. Achievement figures must be exact numbers you confirm.
-- **Section visibility:** `SITE_SETTINGS.sections`. A section also hides itself when it has no confirmed content.
-- **Domain and SEO:** set `NEXT_PUBLIC_SITE_URL` (for example `https://example.com`) at build time. Canonical, alternate languages, sitemap and absolute Open Graph URLs switch on automatically.
-- **Résumé button:** set `PROFILE.resumeUrl` to a file under `public/`.
-- **Interface wording and Arabic labels:** [src/lib/i18n.ts](src/lib/i18n.ts).
-
-## Replace the hero video and portrait
-
-The hero uses processed files in `public/hero/` plus `public/portrait-bust.webp` and `public/og.jpg`.
-Rebuild them from new source files:
-
-```bash
-pip install imageio-ffmpeg numpy pillow      # FFmpeg on PATH also works
-python scripts/build-hero-assets.py --video path/to/intro.mp4 --image path/to/portrait.jpg
-```
-
-Options: `--crop-x` (left edge of the crop), `--loop-fade 0.5` (seamless-loop crossfade, `0` disables),
-`--max-seconds 10`, `--no-levels` (skip the background levels correction), `--bust x,y,width`
-(head-and-shoulders crop of the image). To remove the video entirely set `PROFILE.heroVideo` to `null`.
-
-Playback behaviour: muted autoplay only where the browser allows it, sound only after the
-visitor presses the sound button, pause and silence when less than about 35% of the hero is
-visible, no autoplay with reduced motion.
-
-The supplied media are stylized avatars. The site labels them "Illustrated avatar" and never
-presents them as photographs.
-
-## Structure
+## Layout
 
 ```text
-src/app/[locale]/   layout (fonts, metadata, html lang/dir) and page composition
-src/components/     Navigation, App, hero/, sections/, ui/
-src/lib/            data.ts (content), content.ts (status gating), i18n.ts, hooks.ts, scroll.tsx
-src/fonts/          self-hosted woff2 (Inter Tight, Instrument Serif, JetBrains Mono, IBM Plex Sans Arabic)
-public/             hero/, logos/, projects/, portrait-bust.webp, og.jpg
-scripts/            build-hero-assets.py
-content/            discovery.md, pending-questions.md
+apps/web      public site          apps/admin   dashboard          apps/api   API + Prisma schema
+packages/     validation, types, api-client, config
+scripts/      build-hero-assets.py (hero video pipeline) and source-media/
+docs/         architecture, api, cms, deployment
+content/      discovery.md, pending-questions.md
 ```
 
-Routes are `/en` and `/ar` (`/` redirects to `/en`). The folder layout differs slightly from the
-brief (`app/[locale]/` instead of `app/layout.tsx`) because of the two languages.
+## Verification status
 
-## Deploy
-
-Any Node host works. Static HTML is generated for both languages, so Vercel, Netlify or a Node
-server with `npm run build && npm start` all fit.
-
-1. Set `NEXT_PUBLIC_SITE_URL` to the production domain.
-2. Run `npm run build` and fix any reported error.
-3. Review once with `NEXT_PUBLIC_SHOW_DRAFTS=1`, approve or remove drafts, then build without it.
-4. Check `/robots.txt` and `/sitemap.xml` after deploy.
-
-Do not set `NEXT_PUBLIC_SAMPLE_CONTENT` in production.
-
-## Checks run on the production build
-
-Local run of the final build on Windows with Chrome and Playwright. Lighthouse scores were taken
-with the default (non-review) content.
-
-| Check | Result |
-| --- | --- |
-| `next build`, `tsc --noEmit` | Pass |
-| First load JavaScript (page) | 125 kB, shared chunks 103 kB |
-| Lighthouse mobile (English) | Performance 95, Accessibility 100, Best practices 100, SEO 100 |
-| Lighthouse desktop (English and Arabic) | Performance 100, Accessibility 100, Best practices 100, SEO 100 |
-| Horizontal overflow, 360 to 2560 wide, English and Arabic | None |
-| Console errors during core interactions | None |
-| Interaction tests (with sample content): video autoplay, pause and resume, sound toggle, nav, mobile menu, ID card flip, skill filter and inspector, project accordion with keyboard, copy email, timeline, reduced motion | 26 of 26 pass |
-
-Known limits: the Skills and Experience sections were verified with sample data only, because
-the real entries are still pending. Some Windows machines block Next's native compiler
-(Application Control policy). Next falls back to its WebAssembly compiler and the build still works.
+See the report at the end of the milestone summary in the project conversation, and `docs/architecture/system-architecture.md` for what each automated check covers.

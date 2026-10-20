@@ -12,7 +12,7 @@ interface Props {
   name: string;
   initials: string;
   otherLocaleHref: string;
-  banner: "sample" | "draft" | null;
+  banner: "sample" | "draft" | "preview" | null;
   children: ReactNode;
 }
 
@@ -28,7 +28,15 @@ export default function App({ locale, links, name, initials, otherLocaleHref, ba
       {children}
       {banner && (
         <div className="banner" role="note">
-          {banner === "sample" ? t.sampleBanner : t.draftBanner}
+          {banner === "sample" ? t.sampleBanner : banner === "preview" ? t.previewBanner : t.draftBanner}
+          {banner === "preview" && (
+            <>
+              {" "}
+              <a href="/api/preview/exit" style={{ textDecoration: "underline" }}>
+                {t.exitPreview}
+              </a>
+            </>
+          )}
         </div>
       )}
     </ScrollProvider>

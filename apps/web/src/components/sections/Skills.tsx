@@ -10,7 +10,9 @@ export interface SkillView {
   id: string;
   name: string;
   symbol: string;
-  logo?: string;
+  logo?: string | null;
+  /** Uploaded logo URL, used when there is no bundled logo key. */
+  logoUrl?: string | null;
   familyId: string;
   familyLabel: string;
   projects: string[];
@@ -94,7 +96,7 @@ export default function Skills({ locale, number, families, skills }: Props) {
                     className={s.logoWrap}
                     style={glow ? ({ ["--glow" as string]: glow } as React.CSSProperties) : undefined}
                   >
-                    <TechLogo logo={selected.logo} symbol={selected.symbol} size={64} />
+                    <TechLogo logo={selected.logo} src={selected.logoUrl} symbol={selected.symbol} size={64} />
                   </div>
                   <div className={s.info}>
                     <h3 className={s.pname}>{selected.name}</h3>

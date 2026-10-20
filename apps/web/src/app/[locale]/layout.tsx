@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { notFound } from "next/navigation";
 import "../globals.css";
-import { PROFILE, SITE_SETTINGS, txt } from "@/lib/content";
 import { DIR, LOCALES, isLocale, type Locale } from "@/lib/i18n";
+import { getSiteModel } from "@/lib/site-model";
 
 const inter = localFont({
   src: "../../fonts/InterTight-Variable.woff2",
@@ -41,7 +41,9 @@ const arabic = localFont({
   preload: false,
 });
 
-export const dynamicParams = false;
+// Unknown languages are rejected in the layout and the page (notFound). Keeping dynamicParams enabled lets
+// Next regenerate the two language pages after a CMS publish; with it disabled regeneration fails.
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
@@ -61,37 +63,36 @@ export async function generateMetadata({
   const { locale: raw } = await params;
   if (!isLocale(raw)) return {};
   const locale: Locale = raw;
-  const title = txt(SITE_SETTINGS.meta.title, locale) ?? txt(PROFILE.displayName, locale) ?? "Portfolio";
-  // Falls back to the confirmed role line until the longer description is approved.
-  const description =
-    txt(SITE_SETTINGS.meta.description, locale) ?? txt(PROFILE.roleLine, locale) ?? undefined;
+  const m = await getSiteModel(locale);
+  const { meta } = m;
+  const title = meta.title;
+  const description = meta.description ?? undefined;
   // In development, resolve social-image URLs against localhost so Next does not show a warning badge.
-  // In production the real domain must be set (NEXT_PUBLIC_SITE_URL).
-  const base = SITE_SETTINGS.siteUrl
-    ? new URL(SITE_SETTINGS.siteUrl)
-    : process.env.NODE_ENV !== "production"
-      ? new URL("http://localhost:3000")
-      : undefined;
+  // In production the real domain must be set (Site settings in the CMS, or NEXT_PUBLIC_SITE_URL).
+  const base = meta.siteUrl ? new URL(meta.siteUrl) : process.env.NODE_ENV !== "production" ? new URL("http://localhost:3000") : undefined;
+  const preview = m.banner === "preview";
 
   return {
     metadataBase: base,
     title,
     description,
-    alternates: SITE_SETTINGS.siteUrl
+    alternates: meta.siteUrl
       ? {
-          canonical: `/${locale}`,
+          canonical: meta.canonical ?? `/${locale}`,
           languages: { en: "/en", ar: "/ar", "x-default": "/en" },
         }
       : undefined,
     openGraph: {
-      title,
-      description,
+      title: meta.ogTitle ?? title,
+      description: meta.ogDescription ?? description,
       type: "website",
       locale: locale === "ar" ? "ar_EG" : "en_US",
-      images: [{ url: "/og.jpg", width: 1200, height: 630, alt: title }],
+      images: [{ url: meta.ogImage ?? "/og.jpg", width: 1200, height: 630, alt: title }],
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.jpg"] },
-    robots: { index: true, follow: true },
+    twitter: { card: "summary_large_image", title: meta.ogTitle ?? title, description: meta.ogDescription ?? description, images: [meta.ogImage ?? "/og.jpg"] },
+    icons: meta.favicon ? { icon: meta.favicon } : undefined,
+    // Previews and maintenance mode must never be indexed.
+    robots: preview || m.maintenance ? { index: false, follow: false } : { index: meta.robots.index, follow: meta.robots.follow },
   };
 }
 
